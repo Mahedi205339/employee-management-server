@@ -28,38 +28,38 @@ async function run() {
     const employeeCollection = client.db("EmployeeDB").collection("employees")
 
 
-    // app.post('/jwt', async (req, res) => {
-    //     try {
-    //         const user = req.body;
-    //         const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
-    //         res.send({ token });
-    //     } catch {
-    //         error => console.log(error)
-    //     }
+    app.post('/jwt', async (req, res) => {
+        try {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
+            res.send({ token });
+        } catch {
+            error => console.log(error)
+        }
 
-    // })
+    })
 
 
-    // const verifyToken = (req, res, next) => {
-    //     try {
-    //         // console.log('inside verify token', req.headers.authorization)
-    //         if (!req.headers.authorization) {
-    //             return res.status(401).send({ message: 'Unauthorize access' })
-    //         }
-    //         const token = req.headers.authorization.split(' ')[1];
-    //         jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    //             if (err) {
-    //                 return res.status(403).send({ message: 'forbidden access' })
-    //             }
-    //             req.decoded = decoded;
-    //             next()
-    //         })
-    //     } catch {
-    //         error => console.log(error)
-    //     }
-    // }
+    const verifyToken = (req, res, next) => {
+        try {
+            // console.log('inside verify token', req.headers.authorization)
+            if (!req.headers.authorization) {
+                return res.status(401).send({ message: 'Unauthorize access' })
+            }
+            const token = req.headers.authorization.split(' ')[1];
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
+                req.decoded = decoded;
+                next()
+            })
+        } catch {
+            error => console.log(error)
+        }
+    }
 
-    //users
+    users
 
     app.post('/users', async (req, res) => {
       try {
@@ -86,9 +86,39 @@ async function run() {
         const query = { email: user.email }
         const existingUser = await employeeCollection.findOne(query)
         if (existingUser) {
-         return res.send({ message: 'user already exist', insertedId: null })
+          return res.send({ message: 'user already exist', insertedId: null })
         }
-        const  result = await employeeCollection.insertOne(user);
+        const result = await employeeCollection.insertOne(user);
+        res.send(result)
+      } catch {
+        error => console.log(error)
+      }
+    })
+
+    app.get(('/employee'), async (req, res) => {
+      const result = await employeeCollection.find().toArray()
+      res.send(result)
+    })
+    app.get(('/employee/:id'), async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await employeeCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.patch('/employee/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const data = req.body
+        const filter = { _id: new ObjectId(id) }
+        const updatedDoc = {
+          $set: {
+            verified: "true"
+
+          }
+        }
+        console.log(result)
+        const result = await employeeCollection.updateOne(filter, updatedDoc)
         res.send(result)
       } catch {
         error => console.log(error)
