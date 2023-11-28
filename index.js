@@ -4,7 +4,7 @@ const cors = require('cors');
 require('dotenv').config()
 // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 //middleware 
@@ -26,40 +26,52 @@ async function run() {
   try {
     const usersCollection = client.db("EmployeeDB").collection("users")
     const employeeCollection = client.db("EmployeeDB").collection("employees")
+    const worksheetCollection = client.db("EmployeeDB").collection("worksheet")
 
 
     app.post('/jwt', async (req, res) => {
-        try {
-            const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1hr' });
-            res.send({ token });
-        } catch {
-            error => console.log(error)
-        }
+      try {
+        const user = req.body;
+        const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10d' });
+        res.send({ token });
+      } catch {
+        error => console.log(error)
+      }
 
     })
 
 
     const verifyToken = (req, res, next) => {
-        try {
-            // console.log('inside verify token', req.headers.authorization)
-            if (!req.headers.authorization) {
-                return res.status(401).send({ message: 'Unauthorize access' })
-            }
-            const token = req.headers.authorization.split(' ')[1];
-            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-                if (err) {
-                    return res.status(403).send({ message: 'forbidden access' })
-                }
-                req.decoded = decoded;
-                next()
-            })
-        } catch {
-            error => console.log(error)
+      try {
+        console.log('inside verify token', req.headers.authorization)
+        if (!req.headers.authorization) {
+          return res.status(401).send({ message: 'Unauthorize access' })
         }
+        const token = req.headers.authorization.split(' ')[1];
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+          if (err) {
+            return res.status(403).send({ message: 'forbidden access' })
+          }
+          req.decoded = decoded;
+          next()
+        })
+      } catch {
+        error => console.log(error)
+      }
     }
 
-    users
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.designation === 'admin';
+      if (!isAdmin) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
+      next()
+    }
+
+    // users
 
     app.post('/users', async (req, res) => {
       try {
@@ -95,7 +107,7 @@ async function run() {
       }
     })
 
-    app.get(('/employee'), async (req, res) => {
+    app.get(('/employee'), verifyToken, async (req, res) => {
       const result = await employeeCollection.find().toArray()
       res.send(result)
     })
@@ -109,16 +121,25 @@ async function run() {
     app.patch('/employee/:id', async (req, res) => {
       try {
         const id = req.params.id;
-        const data = req.body
         const filter = { _id: new ObjectId(id) }
         const updatedDoc = {
           $set: {
-            verified: "true"
+            verified: true
 
           }
         }
         console.log(result)
         const result = await employeeCollection.updateOne(filter, updatedDoc)
+        res.send(result)
+      } catch {
+        error => console.log(error)
+      }
+    })
+    //worksheet
+    app.post('/worksheet', async (req, res) => {
+      try {
+        const worksheet = req.body;
+        const result = await worksheetCollection.insertOne(worksheet);
         res.send(result)
       } catch {
         error => console.log(error)
