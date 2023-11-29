@@ -2,7 +2,7 @@ const express = require('express')
 const app = express();
 const cors = require('cors');
 require('dotenv').config()
-// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
@@ -27,6 +27,7 @@ async function run() {
     const usersCollection = client.db("EmployeeDB").collection("users")
     const employeeCollection = client.db("EmployeeDB").collection("employees")
     const worksheetCollection = client.db("EmployeeDB").collection("worksheet")
+    const paymentsCollection = client.db("EmployeeDB").collection("payments")
 
 
     app.post('/jwt', async (req, res) => {
@@ -76,8 +77,7 @@ async function run() {
     app.post('/users', async (req, res) => {
       try {
         const user = req.body;
-        //insert email if user does not exists: 
-        //you can do this many ways (1.email unique , 2.upsert , 3.simple checking)
+
         const query = { email: user.email }
         const existingUser = await usersCollection.findOne(query)
         if (existingUser) {
@@ -107,18 +107,20 @@ async function run() {
       }
     })
 
-    app.get(('/employee'), verifyToken, async (req, res) => {
+    app.get(('/employee'), async (req, res) => {
       const result = await employeeCollection.find().toArray()
       res.send(result)
     })
-    app.get(('/employee/:id'), async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
+
+
+    app.get(('/employee/:email'), async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
       const result = await employeeCollection.findOne(query)
       res.send(result)
     })
 
-    app.patch('/employee/:id', async (req, res) => {
+    app.patch('/employee/HR/:id', async (req, res) => {
       try {
         const id = req.params.id;
         const filter = { _id: new ObjectId(id) }
@@ -128,12 +130,31 @@ async function run() {
 
           }
         }
-        console.log(result)
         const result = await employeeCollection.updateOne(filter, updatedDoc)
         res.send(result)
       } catch {
         error => console.log(error)
       }
+    })
+
+    app.patch('/employee/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          designation: 'HR'
+        }
+      }
+      const result = await employeeCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
+
+
+    app.delete('/employee/:id', verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await employeeCollection.deleteOne(query)
+      res.send(result)
     })
     //worksheet
     app.post('/worksheet', async (req, res) => {
@@ -146,6 +167,58 @@ async function run() {
       }
     })
 
+    app.get('/worksheet', async (req, res) => {
+      const result = await worksheetCollection.find().toArray()
+      res.send(result)
+    })
+    app.get('/worksheet/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
+      const result = await worksheetCollection.findOne(query);
+      res.send(result)
+    })
+
+    // payment 
+
+    app.post('/create-payment-intent', async (req, res) => {
+      const { salary } = req.body;
+      const amount = parseInt(salary);
+      console.log(amount, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    });
+
+    app.post('/payments', async (req, res) => {
+      try {
+        const payment = req.body;
+        const paymentResult = await paymentsCollection.insertOne(payment)
+        console.log('payment info', payment)
+
+        res.send(paymentResult)
+      }
+      catch {
+        error => console.log(error)
+      }
+    })
+
+    app.get('/payments/:email', async (req ,res)=>{
+      const email = req.params.email ;
+      const query = {email : email}
+      const result = await paymentsCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.get('/payments/', async (req ,res)=>{
+      const result = await paymentsCollection.find().toArray()
+      res.send(result)
+    })
 
 
 
