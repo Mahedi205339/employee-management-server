@@ -29,6 +29,7 @@ async function run() {
     const worksheetCollection = client.db("EmployeeDB").collection("worksheet")
     const paymentsCollection = client.db("EmployeeDB").collection("payments")
     const servicesCollection = client.db("EmployeeDB").collection("services")
+    const contactCollection = client.db("EmployeeDB").collection("contactUs")
 
 
     app.post('/jwt', async (req, res) => {
@@ -249,6 +250,8 @@ async function run() {
       }
     })
 
+
+
     app.get('/payments/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { email: email }
@@ -260,11 +263,16 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/services' , async(req,res)=>{
+    app.get('/services', async (req, res) => {
       const result = await servicesCollection.find().toArray()
       res.send(result)
     })
-
+    //contact us 
+    app.post('/contact', async (req, res) => {
+      const contact = req.body;
+      const result = await contactCollection.insertOne(contact)
+      res.send(result)
+    })
 
 
     // Connect the client to the server	(optional starting in v4.7)
