@@ -28,12 +28,13 @@ async function run() {
     const employeeCollection = client.db("EmployeeDB").collection("employees")
     const worksheetCollection = client.db("EmployeeDB").collection("worksheet")
     const paymentsCollection = client.db("EmployeeDB").collection("payments")
+    const servicesCollection = client.db("EmployeeDB").collection("services")
 
 
     app.post('/jwt', async (req, res) => {
       try {
         const user = req.body;
-        const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10d' });
+        const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
         res.send({ token });
       } catch {
         error => console.log(error)
@@ -61,18 +62,57 @@ async function run() {
       }
     }
 
-    const verifyAdmin = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      const isAdmin = user?.designation === 'admin';
-      if (!isAdmin) {
-        return res.status(403).send({ message: 'forbidden access' })
-      }
-      next()
-    }
+    // const verifyAdmin = async (req, res, next) => {
+    //   const email = req.decoded.email;
+    //   const query = { email: email };
+    //   const user = await employeeCollection.findOne(query);
+    //   const isAdmin = user?.designation === 'admin';
+    //   if (!isAdmin) {
+    //     return res.status(403).send({ message: 'forbidden access' })
+    //   }
+    //   next()
+    // }
+    // const verifyHR = async (req, res, next) => {
+    //   const email = req.decoded.email;
+    //   const query = { email: email };
+    //   const user = await employeeCollection.findOne(query);
+    //   const isAdmin = user?.designation === 'HR';
+    //   if (!isAdmin) {
+    //     return res.status(403).send({ message: 'forbidden access' })
+    //   }
+    //   next()
+    // }
 
     // users
+
+    // admin 
+    app.get('/employee/admin/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'unauthorized access' })
+      }
+      const query = { email: email }
+      const user = await employeeCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.designation === 'admin'
+      }
+      res.send({ admin })
+    })
+    // HR 
+    app.get('/employee/hr/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'unauthorized access' })
+      }
+      const query = { email: email }
+      const user = await employeeCollection.findOne(query);
+      let HR = false;
+      if (user) {
+        HR = user?.designation === 'HR'
+      }
+      res.send({ HR })
+    })
 
     app.post('/users', async (req, res) => {
       try {
@@ -107,7 +147,7 @@ async function run() {
       }
     })
 
-    app.get(('/employee'), async (req, res) => {
+    app.get(('/employee'), verifyToken, async (req, res) => {
       const result = await employeeCollection.find().toArray()
       res.send(result)
     })
@@ -150,7 +190,7 @@ async function run() {
     })
 
 
-    app.delete('/employee/:id', verifyAdmin, async (req, res) => {
+    app.delete('/employee/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await employeeCollection.deleteOne(query)
@@ -196,7 +236,7 @@ async function run() {
       })
     });
 
-    app.post('/payments', async (req, res) => {
+    app.post('/payments', verifyToken, async (req, res) => {
       try {
         const payment = req.body;
         const paymentResult = await paymentsCollection.insertOne(payment)
@@ -209,14 +249,19 @@ async function run() {
       }
     })
 
-    app.get('/payments/:email', async (req ,res)=>{
-      const email = req.params.email ;
-      const query = {email : email}
+    app.get('/payments/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email }
       const result = await paymentsCollection.find(query).toArray()
       res.send(result)
     })
-    app.get('/payments/', async (req ,res)=>{
+    app.get('/payments/', verifyToken, async (req, res) => {
       const result = await paymentsCollection.find().toArray()
+      res.send(result)
+    })
+
+    app.get('/services' , async(req,res)=>{
+      const result = await servicesCollection.find().toArray()
       res.send(result)
     })
 
