@@ -178,7 +178,7 @@ async function run() {
       }
     })
 
-    app.patch('/employee/admin/:id', async (req, res) => {
+    app.patch('/employee/admin/:id',verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -191,7 +191,7 @@ async function run() {
     })
 
 
-    app.delete('/employee/:id', async (req, res) => {
+    app.delete('/employee/:id',verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await employeeCollection.deleteOne(query)
@@ -208,11 +208,11 @@ async function run() {
       }
     })
 
-    app.get('/worksheet', async (req, res) => {
+    app.get('/worksheet',verifyToken, async (req, res) => {
       const result = await worksheetCollection.find().toArray()
       res.send(result)
     })
-    app.get('/worksheet/:email', async (req, res) => {
+    app.get('/worksheet/:email',verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { email: email }
       const result = await worksheetCollection.findOne(query);
@@ -237,7 +237,7 @@ async function run() {
       })
     });
 
-    app.post('/payments', verifyToken, async (req, res) => {
+    app.post('/payments', async (req, res) => {
       try {
         const payment = req.body;
         const paymentResult = await paymentsCollection.insertOne(payment)
